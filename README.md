@@ -11,7 +11,15 @@
 
 ---
 
-A **Claude Code plugin** that audits your token consumption and identifies exactly where your money is going. Built from real-world pain — every pitfall documented here was discovered the hard way during production use.
+> **Born from 1.56 billion tokens in 16 days.**
+>
+> 9,000 requests. $1,700+ burned. 133M input tokens. Heavy vibe-coding at max intensity with Opus — and then we asked: *where did all the tokens go?*
+>
+> This plugin is the answer. Every check, every pitfall, every optimization documented here was paid for in real tokens, discovered through systematic forensic analysis of a production Claude Code environment running at extreme scale.
+
+---
+
+A **Claude Code plugin** that audits your token consumption and identifies exactly where your money is going. Not theory — built from real forensic analysis of a heavy-usage environment that burned through 1.56B tokens in half a month.
 
 ## The Problem
 
@@ -164,6 +172,6 @@ MIT
 ---
 
 <p align="center">
-  <em>Built from real pain. Every pitfall documented here cost real money to discover.</em><br>
-  <strong>Star this repo if it saves you from stepping on the same mines.</strong>
+  <em>1.56B tokens. $1,700. 16 days. Every pitfall documented here was paid for in real money.</em><br>
+  <strong>Star this repo so others don't have to pay the same tuition.</strong>
 </p>
