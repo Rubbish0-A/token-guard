@@ -1,4 +1,8 @@
 <p align="center">
+  <a href="README.zh-CN.md">中文</a> | English
+</p>
+
+<p align="center">
   <h1 align="center">Token Guard</h1>
   <p align="center"><strong>以身试法的通用 Tokens 节省指南 — 把该踩的坑都踩过了</strong></p>
   <p align="center">
