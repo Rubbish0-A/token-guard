@@ -56,7 +56,7 @@ Claude Code 的 token 成本会因为隐蔽的配置问题悄然爆炸：
 
 ---
 
-## 🚀 安装
+## ▸ 安装
 
 ```bash
 claude plugin add Rubbish0-A/token-guard
@@ -71,7 +71,7 @@ git clone git@github.com:Rubbish0-A/token-guard.git ~/.claude/plugins/local/toke
 
 </details>
 
-## 📋 使用
+## ▸ 使用
 
 ```
 /token-guard
@@ -117,7 +117,7 @@ Token Guard 审计报告
 
 </details>
 
-## 🔍 检查项
+## ▸ 检查项
 
 | # | 检查项 | 检测内容 |
 |:---:|--------|---------|
@@ -154,7 +154,7 @@ Token Guard 审计报告
 
 </details>
 
-## 📖 踩坑指南
+## ▸ 踩坑指南
 
 8 章指南，全部基于真实事件。每章：发生了什么 → 为什么 → 消耗影响 → 规范做法。
 
@@ -169,7 +169,7 @@ Token Guard 审计报告
 | 7 | **会话管理** | git commit 才是跨会话记忆，不是长对话 |
 | 8 | **子 Agent 失控** | "自动触发" = 3-5 个 agent × 完整系统提示 × Opus 定价 |
 
-## 💰 成本倍数参考
+## ▸ 成本倍数参考
 
 不含绝对价格——只用倍数关系，不随调价过时：
 
@@ -179,7 +179,7 @@ Token Guard 审计报告
 | **Sonnet** | 1x | 1x | 日常编码、调试 |
 | **Haiku** | ~0.27x | ~0.27x | 子 agent、检索、批处理 |
 
-## 🤖 子 Agent 模型分档策略
+## ▸ 子 Agent 模型分档策略
 
 | 任务 | 模型 | 升级到 Opus 的条件 |
 |------|:----:|--------------------|
@@ -188,7 +188,7 @@ Token Guard 审计报告
 | Code review（小 diff） | **Sonnet** | 涉及认证、支付、安全、迁移 |
 | 复杂编码、架构设计 | **Opus** | — |
 
-## 👋 新同事入职指南
+## ▸ 新同事入职指南
 
 包含 `onboarding-checklist.md` — 新同事入职当天就能用的配置清单，从第一天就避免浪费。
 

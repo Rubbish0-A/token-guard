@@ -56,7 +56,7 @@ Claude Code token costs can silently explode due to misconfigurations invisible 
 
 ---
 
-## 🚀 Installation
+## ▸ Installation
 
 ```bash
 claude plugin add Rubbish0-A/token-guard
@@ -71,7 +71,7 @@ git clone git@github.com:Rubbish0-A/token-guard.git ~/.claude/plugins/local/toke
 
 </details>
 
-## 📋 Usage
+## ▸ Usage
 
 ```
 /token-guard
@@ -117,7 +117,7 @@ System prompt overhead: ~25,000 tokens/turn
 
 </details>
 
-## 🔍 What It Checks
+## ▸ What It Checks
 
 | # | Check | What It Detects |
 |:---:|-------|-----------------|
@@ -154,7 +154,7 @@ Includes `scripts/audit.sh` — cross-platform Bash script outputting structured
 
 </details>
 
-## 📖 Pitfall Guide
+## ▸ Pitfall Guide
 
 8 chapters based on real incidents. Each chapter: what happened → why → cost impact → correct approach.
 
@@ -169,7 +169,7 @@ Includes `scripts/audit.sh` — cross-platform Bash script outputting structured
 | 7 | **Session Management** | Git commit is your cross-session memory, not long conversations |
 | 8 | **Sub-Agent Explosion** | "Auto-dispatch" = 3-5 agents × full system prompt × Opus pricing |
 
-## 💰 Cost Model
+## ▸ Cost Model
 
 No absolute prices — ratios that stay valid as pricing changes:
 
@@ -179,7 +179,7 @@ No absolute prices — ratios that stay valid as pricing changes:
 | **Sonnet** | 1x | 1x | Daily coding, debugging |
 | **Haiku** | ~0.27x | ~0.27x | Sub-agents, retrieval, batch |
 
-## 🤖 Sub-Agent Model Strategy
+## ▸ Sub-Agent Model Strategy
 
 | Task | Model | Escalate to Opus When |
 |------|:-----:|-----------------------|
@@ -188,7 +188,7 @@ No absolute prices — ratios that stay valid as pricing changes:
 | Code review (small diff) | **Sonnet** | Involves auth, payment, security, migration |
 | Complex coding, architecture | **Opus** | — |
 
-## 👋 New User Onboarding
+## ▸ New User Onboarding
 
 Includes `onboarding-checklist.md` — a ready-to-use checklist for new team members to configure Claude Code efficiently from day one.
 
