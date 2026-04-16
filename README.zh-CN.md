@@ -2,6 +2,8 @@
 
 中文 | <a href="README.md">English</a>
 
+<img src="assets/banner.png" alt="Token Guard Banner" width="100%">
+
 # Token Guard
 
 **以身试法的通用 Tokens 节省指南 — 把该踩的坑都踩过了**

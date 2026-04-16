@@ -2,6 +2,8 @@
 
 <a href="README.zh-CN.md">中文</a> | English
 
+<img src="assets/banner.png" alt="Token Guard Banner" width="100%">
+
 # Token Guard
 
 **The Claude Code Token Efficiency Guide — Learned the Hard Way**
