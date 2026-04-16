@@ -1,0 +1,13 @@
+{
+  "name": "token-guard",
+  "version": "1.0.0",
+  "description": "Claude Code token consumption audit and optimization guide. Learned the hard way so you don't have to.",
+  "author": {
+    "name": "Rubbish0-A",
+    "url": "https://github.com/Rubbish0-A"
+  },
+  "homepage": "https://github.com/Rubbish0-A/token-guard",
+  "repository": "https://github.com/Rubbish0-A/token-guard",
+  "license": "MIT",
+  "keywords": ["token", "cost", "optimization", "audit", "efficiency", "claude-code"]
+}
