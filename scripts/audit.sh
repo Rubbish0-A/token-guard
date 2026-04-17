@@ -530,7 +530,7 @@ check_sessions() {
 
 echo "{"
 echo "  \"tool\": \"token-guard\","
-echo "  \"version\": \"1.1.0\","
+echo "  \"version\": \"1.1.1\","
 echo "  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date +%Y-%m-%d)\","
 echo "  \"results\": ["
 echo "    $(check_model),"
