@@ -26,11 +26,11 @@ description: Manually invoked audit tool for Claude Code token efficiency. Use O
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/audit.sh
 ```
 
-脚本会输出 JSON 格式的检查结果，包含 9 项检查。如果脚本无法执行（权限、路径问题等），则手动执行 Step 1b。
+脚本会输出 JSON 格式的检查结果，包含 10 项检查。如果脚本无法执行（权限、路径问题等），则手动执行 Step 1b。
 
 ### Step 1b：手动检查（脚本不可用时的备选）
 
-依次执行以下 9 项检查：
+依次执行以下 10 项检查：
 
 **检查 1 — 模型配置**
 读取 `~/.claude/settings.json` 中的 `model` 字段。
@@ -95,6 +95,14 @@ bash ${CLAUDE_PLUGIN_ROOT}/scripts/audit.sh
 - 存在超过 10MB 的 aside_question agent：标记为 ⚠️
 - 单个会话超过 20MB：标记为 ⚠️（建议 `/compact` 或开新会话）
 
+**检查 10 — Context Rot 风险（NEW in 1.2.0）**
+扫描 `~/.claude/projects/*/*.jsonl` 中近 7 天活跃的 session，取每个 session 最后一条 assistant event 的 `usage.input_tokens + cache_read_input_tokens + cache_creation_input_tokens`（模型真实看到的上下文体积，不是磁盘字节数）。
+- 依据：Thariq @ Anthropic（Apr 16 2026）指出上下文 ~300-400K tokens 后模型性能下降（context rot），且 auto-compact 在最低智能点执行
+- `total_context >= 300K`：⚠️（建议主动 `/compact` 带方向说明，如 `/compact focus on current task`）
+- `total_context >= 400K`：❌（深度 rot 区，此时 compact 质量最低，建议 `/clear` + 手写 brief 重开）
+- 只标记活跃 session（mtime < 7 天）；僵尸 session 不算风险
+- 区别于检查 9：检查 9 看磁盘字节数（单调增长），检查 10 看当前活跃上下文 tokens（compact/rewind 后会缩小），两者是正交信号
+
 ### Step 2：生成报告
 
 根据检查结果，使用以下固定模板生成报告：
@@ -133,6 +141,9 @@ Token Guard 审计报告
 
 [✅/⚠️/❌] 会话健康：[N]个会话，总计[大小]，[N]个 aside_question agent
     [如有问题，一行说明]
+
+[✅/⚠️/❌] Context Rot 风险：[N]个活跃 session，[warn]个接近 rot 区，[fail]个深度 rot
+    [如有问题，列出 Top 3 session 的 id 和上下文体积 (如 8d15b0d6: 840K)]
 
 ──── 影响估算 ──────────────────────────────────
 
@@ -182,6 +193,9 @@ Effort 倍数：[说明当前 effort 相对 high 的思考 token 倍数]
 | 会话数据膨胀 | 长会话执行 `/compact` 压缩，或开新会话；定期清理旧会话目录 |
 | 子 agent 数量过多 | 检查规则文件是否有"自动触发"指令，改为"建议触发" |
 | aside_question 膨胀 | episodic-memory 插件产生的记忆搜索 agent 可达 15MB+，不常用时考虑禁用该插件 |
+| 活跃 session >300K tokens | 主动 `/compact focus on current task`（带方向说明避免 bad compact） |
+| 活跃 session >400K tokens | `/clear` 后写一份 brief 重开；此时模型已进入 context rot，compact 质量最低 |
+| 用 "that didn't work, try X" 修正 | 改用双击 Esc 触发 `/rewind`，从失败点前重开，避免把失败路径污染进上下文 |
 
 ## 成本倍数参考（不含具体价格）
 
@@ -226,3 +240,4 @@ Effort 倍数：[说明当前 effort 相对 high 的思考 token 倍数]
 | 第7章 | 同上 § 会话管理 | git commit 作为跨会话记忆、/compact、一任务一会话 |
 | 第8章 | 同上 § 子 Agent 失控 | 自动触发→建议触发、model × effort 分档、升级条件、输出规范 |
 | 第9章 | 同上 § 模型版本升级污染 | 待累积更多升级案例后补写（v1.1.0 占位） |
+| 第10章 | 同上 § Context Rot & Session 卫生 | 300-400K 阈值、每轮5选项（continue/rewind/clear/compact/subagent）、bad compact 失效机理（v1.2.0 占位，依据 Thariq Apr 2026） |

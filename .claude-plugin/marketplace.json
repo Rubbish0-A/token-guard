@@ -10,8 +10,8 @@
     {
       "name": "token-guard",
       "source": "./",
-      "description": "Manually invoked audit tool for Claude Code token efficiency. Detects stale rules, model/effort misconfigurations, dead permissions, session bloat.",
-      "version": "1.1.1",
+      "description": "Manually invoked audit tool for Claude Code token efficiency. Detects stale rules, model/effort misconfigurations, dead permissions, session bloat, context rot risk.",
+      "version": "1.2.0",
       "author": {
         "name": "Andy_Chen"
       },

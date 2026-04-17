@@ -526,11 +526,138 @@ check_sessions() {
   echo "{\"check\":\"sessions\",\"status\":\"${status}\",\"totalSessions\":${total_sessions},\"totalSizeMB\":${total_size_mb},\"subagents\":${total_subagents},\"asideQuestions\":${aside_count},\"asideLarge\":${aside_large},\"largestSessionMB\":${largest_session_mb},\"message\":\"${message}\"}"
 }
 
+# ── 检查 10：Context Rot 风险（NEW in 1.2.0）──
+# 依据：Thariq @ Anthropic, "Session Management & 1M Context" (Apr 16 2026)
+# 模型性能在 ~300-400K tokens 后开始下降（context rot），且 auto-compact
+# 在最低智能点执行，会产生 bad compact。
+
+check_context_rot_risk() {
+  local projects_dir="${CLAUDE_DIR}/projects"
+  if [ ! -d "$projects_dir" ]; then
+    echo "{\"check\":\"context_rot_risk\",\"status\":\"pass\",\"message\":\"无项目会话数据\"}"
+    return
+  fi
+
+  local result
+  result=$(PROJECTS_DIR="$projects_dir" node -e "
+    const fs = require('fs');
+    const path = require('path');
+
+    const projectsDir = process.env.PROJECTS_DIR;
+    const ROT_WARN = 300000;
+    const ROT_FAIL = 400000;
+    const ACTIVE_DAYS = 7;
+    const cutoff = Date.now() - ACTIVE_DAYS * 86400 * 1000;
+
+    function lastAssistantContext(file) {
+      try {
+        const content = fs.readFileSync(file, 'utf8');
+        const lines = content.split('\n');
+        let last = null;
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const ev = JSON.parse(line);
+            if (ev.type === 'assistant' && ev.message && ev.message.usage) {
+              const u = ev.message.usage;
+              const inp = u.input_tokens || 0;
+              const cr = u.cache_read_input_tokens || 0;
+              const cc = u.cache_creation_input_tokens || 0;
+              last = inp + cr + cc;
+            }
+          } catch (e) {}
+        }
+        return last;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    const risks = [];
+    let activeCount = 0;
+
+    try {
+      const projects = fs.readdirSync(projectsDir);
+      for (const proj of projects) {
+        const projPath = path.join(projectsDir, proj);
+        let stat;
+        try { stat = fs.statSync(projPath); } catch (e) { continue; }
+        if (!stat.isDirectory()) continue;
+
+        let files;
+        try { files = fs.readdirSync(projPath); } catch (e) { continue; }
+
+        for (const f of files) {
+          if (!f.endsWith('.jsonl')) continue;
+          const fpath = path.join(projPath, f);
+          let fstat;
+          try { fstat = fs.statSync(fpath); } catch (e) { continue; }
+          if (!fstat.isFile()) continue;
+          if (fstat.mtimeMs < cutoff) continue;
+
+          const ctx = lastAssistantContext(fpath);
+          if (ctx === null) continue;
+
+          activeCount++;
+          if (ctx >= ROT_WARN) {
+            risks.push({
+              session: f.replace('.jsonl', '').slice(0, 8),
+              context: ctx,
+              daysAgo: Math.round((Date.now() - fstat.mtimeMs) / 86400000 * 10) / 10,
+              project: proj.length > 28 ? proj.slice(0, 25) + '...' : proj,
+              level: ctx >= ROT_FAIL ? 'fail' : 'warn'
+            });
+          }
+        }
+      }
+    } catch (e) {}
+
+    risks.sort((a, b) => b.context - a.context);
+
+    const failCount = risks.filter(r => r.level === 'fail').length;
+    const warnCount = risks.filter(r => r.level === 'warn').length;
+
+    let status = 'pass';
+    let message = '';
+
+    if (activeCount === 0) {
+      message = \`近 \${ACTIVE_DAYS} 天无活跃 session\`;
+    } else if (failCount > 0) {
+      status = 'fail';
+      const top = risks.slice(0, 3).map(r => \`\${r.session}(\${Math.round(r.context/1000)}K)\`).join(', ');
+      message = \`\${failCount} 个活跃 session 已进入深度 context rot（>400K），建议 /clear + 手写 brief 重开；/compact 此时质量最低。Top: \${top}\`;
+    } else if (warnCount > 0) {
+      status = 'warn';
+      const top = risks.slice(0, 3).map(r => \`\${r.session}(\${Math.round(r.context/1000)}K)\`).join(', ');
+      message = \`\${warnCount} 个活跃 session 接近 context rot 区（300-400K），建议主动 /compact —focus on current task。Top: \${top}\`;
+    } else {
+      message = \`\${activeCount} 个活跃 session 均在安全区（<300K）\`;
+    }
+
+    console.log(JSON.stringify({
+      check: 'context_rot_risk',
+      status,
+      activeSessions: activeCount,
+      warnCount,
+      failCount,
+      topOffenders: risks.slice(0, 5),
+      thresholds: { warn: ROT_WARN, fail: ROT_FAIL, activeDays: ACTIVE_DAYS },
+      message
+    }));
+  " 2>/dev/null)
+
+  if [ -z "$result" ]; then
+    echo "{\"check\":\"context_rot_risk\",\"status\":\"info\",\"message\":\"扫描异常\"}"
+  else
+    echo "$result"
+  fi
+}
+
 # ── 主流程 ────────────────────────────────────
 
 echo "{"
 echo "  \"tool\": \"token-guard\","
-echo "  \"version\": \"1.1.1\","
+echo "  \"version\": \"1.2.0\","
 echo "  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date +%Y-%m-%d)\","
 echo "  \"results\": ["
 echo "    $(check_model),"
@@ -541,6 +668,7 @@ echo "    $(check_env_vars),"
 echo "    $(check_dangerous_mode),"
 echo "    $(check_dead_permissions),"
 echo "    $(check_stale_rules),"
-echo "    $(check_sessions)"
+echo "    $(check_sessions),"
+echo "    $(check_context_rot_risk)"
 echo "  ]"
 echo "}"

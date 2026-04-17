@@ -10,7 +10,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/Rubbish0-A/token-guard)
-[![Version](https://img.shields.io/badge/version-1.1.0-green)](https://github.com/Rubbish0-A/token-guard)
+[![Version](https://img.shields.io/badge/version-1.2.0-green)](https://github.com/Rubbish0-A/token-guard)
 
 [安装](#-安装) · [使用](#-使用) · [检查项](#-检查项) · [踩坑指南](#-踩坑指南)
 
@@ -103,6 +103,8 @@ Token Guard 审计报告
     → 第40行：MAX_THINKING_TOKENS（Opus 4.7+ 已废弃）
     → 第39行：alwaysThinkingEnabled（被 effortLevel 取代）
 ⚠️ 会话健康：总计 236MB，45 个 aside_question agent，最大 48MB
+❌ Context Rot 风险：30 个活跃 session，3 个接近 rot 区（warn），3 个深度 rot（fail）
+    → Top 3 offender: 8d15b0d6 (840K tokens)、d483af3d (614K)、5c72d6bf (492K)
 
 ──── 影响估算 ──────────────────────────────────
 
@@ -138,12 +140,13 @@ Effort 成本系数：~1.5x high 基准（xhigh）
 | 7 | **死代码权限** 🆕 | 危险模式下残留的 `permissions.allow` 列表（被完全绕过） |
 | 8 | **规则过时指令** 🆕 | 自动加载的规则文件中残留的废弃指令（如 Opus 4.7 后的 `MAX_THINKING_TOKENS`） |
 | 9 | **会话健康** | 会话膨胀、aside_question agent 膨胀、陈旧数据 |
+| 10 | **Context Rot 风险** 🆕 | 近 7 天活跃 session 是否进入 300-400K tokens 的 context rot 区（依据 Thariq @ Anthropic, 2026-04）——基于 `input + cache_read + cache_creation`，而非磁盘字节数 |
 
-> 🆕 为 **v1.1.0** 新增检查。过时指令检查对照可维护的模式库 `references/stale-patterns.json`——遇到新的废弃指令欢迎提 PR 贡献模式。
+> 🆕 **v1.1.0** 引入（effort / dead-permissions / stale-rules）与 **v1.2.0** 引入（context-rot-risk）。过时指令检查对照 `references/stale-patterns.json`，遇到新的废弃指令欢迎 PR 贡献。
 
 ### 自动化诊断脚本
 
-内含 `scripts/audit.sh` — 跨平台 Bash 脚本，9 项检查输出结构化 JSON。Claude 读取后生成可读报告，脚本不可用时回退到手动检查。
+内含 `scripts/audit.sh` — 跨平台 Bash 脚本，10 项检查输出结构化 JSON。Claude 读取后生成可读报告，脚本不可用时回退到手动检查。
 
 <details>
 <summary>JSON 输出示例</summary>
@@ -151,7 +154,7 @@ Effort 成本系数：~1.5x high 基准（xhigh）
 ```json
 {
   "tool": "token-guard",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "results": [
     {"check": "model", "status": "warn", "value": "opus[1m]", "effort": "xhigh"},
     {"check": "effort_level", "status": "pass", "value": "xhigh"},
@@ -161,7 +164,8 @@ Effort 成本系数：~1.5x high 基准（xhigh）
     {"check": "dangerous_mode", "status": "warn", "dangerousProcs": 1},
     {"check": "dead_permissions", "status": "pass", "allowCount": 0},
     {"check": "stale_rules", "status": "warn", "matches": 3, "details": [{"patternId": "max-thinking-tokens", "file": "~/.claude/rules/common/performance.md", "line": 40}]},
-    {"check": "sessions", "status": "warn", "totalSizeMB": 236}
+    {"check": "sessions", "status": "warn", "totalSizeMB": 236},
+    {"check": "context_rot_risk", "status": "fail", "activeSessions": 30, "warnCount": 3, "failCount": 3, "topOffenders": [{"session": "8d15b0d6", "context": 839610, "level": "fail"}]}
   ]
 }
 ```
@@ -170,7 +174,7 @@ Effort 成本系数：~1.5x high 基准（xhigh）
 
 ## ▸ 踩坑指南
 
-8 章基于真实事件 + 1 章占位。每章：发生了什么 → 为什么 → 消耗影响 → 规范做法。
+8 章基于真实事件 + 2 章占位（后续版本补全）。每章：发生了什么 → 为什么 → 消耗影响 → 规范做法。
 
 | 章 | 标题 | 核心教训 |
 |:---:|------|---------|
@@ -183,8 +187,9 @@ Effort 成本系数：~1.5x high 基准（xhigh）
 | 7 | **会话管理** | git commit 才是跨会话记忆，不是长对话 |
 | 8 | **子 Agent 失控** 🔄 | "自动触发" = 3-5 个 agent × 完整系统提示 × Opus 定价，v1.1 新增 model × effort 矩阵 |
 | 9 | **升级漂移** 🆕 | *（占位）* 模型版本升级留下陈旧配置，持续污染后续上下文 |
+| 10 | **Context Rot & 会话卫生** 🆕 | *（v1.2.0 占位）* 300-400K 是 rot 区；rewind > 纠正；proactive /compact 优于 auto-compact（依据 Thariq, 2026-04） |
 
-> 🔄 = v1.1.0 重写的章节。🆕 = v1.1.0 新增占位，待累积更多升级案例后补写。
+> 🔄 = v1.1.0 重写的章节。🆕 = v1.1.0 新增占位（第 9 章）与 v1.2.0 新增占位（第 10 章），待累积更多案例后补全。
 
 ## ▸ 成本倍数参考
 

@@ -10,7 +10,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/Rubbish0-A/token-guard)
-[![Version](https://img.shields.io/badge/version-1.1.0-green)](https://github.com/Rubbish0-A/token-guard)
+[![Version](https://img.shields.io/badge/version-1.2.0-green)](https://github.com/Rubbish0-A/token-guard)
 
 [Installation](#-installation) · [Usage](#-usage) · [What It Checks](#-what-it-checks) · [Pitfall Guide](#-pitfall-guide)
 
@@ -103,6 +103,8 @@ Time: 2026-04-17 10:30:00
     → Line 40: MAX_THINKING_TOKENS (deprecated in Opus 4.7+)
     → Line 39: alwaysThinkingEnabled (superseded by effortLevel)
 ⚠️ Sessions: 236MB total, 45 aside_question agents, largest 48MB
+❌ Context Rot Risk: 30 active sessions, 3 approaching rot (warn), 3 deep rot (fail)
+    → Top offenders: 8d15b0d6 (840K tokens), d483af3d (614K), 5c72d6bf (492K)
 
 ──── Impact ────────────────────────────────────
 
@@ -138,12 +140,13 @@ Effort cost: ~1.5x high baseline (xhigh)
 | 7 | **Dead Permissions** 🆕 | Redundant `permissions.allow` list under dangerously-skip mode |
 | 8 | **Stale Rules** 🆕 | Deprecated tokens in auto-loaded rules files (e.g. `MAX_THINKING_TOKENS` after Opus 4.7) |
 | 9 | **Session Health** | Session bloat, aside_question agent inflation, stale data |
+| 10 | **Context Rot Risk** 🆕 | Active sessions approaching the 300-400K token rot zone (per Thariq @ Anthropic, Apr 2026) — measured by `input_tokens + cache_read + cache_creation`, not disk bytes |
 
-> 🆕 marks checks introduced in **v1.1.0**. The stale-rules check scans your rules files against a maintained pattern library at `references/stale-patterns.json` — contribute a pattern when you hit a new deprecation.
+> 🆕 checks introduced in **v1.1.0** (effort / dead-permissions / stale-rules) and **v1.2.0** (context-rot-risk). Stale-rules scans rules files against `references/stale-patterns.json` — contribute a pattern when you hit a new deprecation.
 
 ### Automated Diagnostic Script
 
-Includes `scripts/audit.sh` — cross-platform Bash script outputting structured JSON for all 9 checks. Claude reads the JSON and generates the human-friendly report. Falls back to manual checks if the script can't run.
+Includes `scripts/audit.sh` — cross-platform Bash script outputting structured JSON for all 10 checks. Claude reads the JSON and generates the human-friendly report. Falls back to manual checks if the script can't run.
 
 <details>
 <summary>JSON output example</summary>
@@ -151,7 +154,7 @@ Includes `scripts/audit.sh` — cross-platform Bash script outputting structured
 ```json
 {
   "tool": "token-guard",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "results": [
     {"check": "model", "status": "warn", "value": "opus[1m]", "effort": "xhigh"},
     {"check": "effort_level", "status": "pass", "value": "xhigh"},
@@ -161,7 +164,8 @@ Includes `scripts/audit.sh` — cross-platform Bash script outputting structured
     {"check": "dangerous_mode", "status": "warn", "dangerousProcs": 1},
     {"check": "dead_permissions", "status": "pass", "allowCount": 0},
     {"check": "stale_rules", "status": "warn", "matches": 3, "details": [{"patternId": "max-thinking-tokens", "file": "~/.claude/rules/common/performance.md", "line": 40}]},
-    {"check": "sessions", "status": "warn", "totalSizeMB": 236}
+    {"check": "sessions", "status": "warn", "totalSizeMB": 236},
+    {"check": "context_rot_risk", "status": "fail", "activeSessions": 30, "warnCount": 3, "failCount": 3, "topOffenders": [{"session": "8d15b0d6", "context": 839610, "level": "fail"}]}
   ]
 }
 ```
@@ -170,7 +174,7 @@ Includes `scripts/audit.sh` — cross-platform Bash script outputting structured
 
 ## ▸ Pitfall Guide
 
-8 chapters based on real incidents + 1 placeholder for upcoming content. Each chapter: what happened → why → cost impact → correct approach.
+8 chapters based on real incidents + 2 placeholders for content maturing in upcoming releases. Each chapter: what happened → why → cost impact → correct approach.
 
 | Ch | Title | Key Lesson |
 |:---:|-------|------------|
@@ -183,8 +187,9 @@ Includes `scripts/audit.sh` — cross-platform Bash script outputting structured
 | 7 | **Session Management** | Git commit is your cross-session memory, not long conversations |
 | 8 | **Sub-Agent Explosion** 🔄 | "Auto-dispatch" = 3-5 agents × full system prompt × Opus pricing — now with model × effort matrix |
 | 9 | **Upgrade Drift** 🆕 | *(placeholder)* Model version upgrades leave behind stale config that keeps polluting context |
+| 10 | **Context Rot & Session Hygiene** 🆕 | *(placeholder, v1.2.0)* 300-400K is the rot zone; rewind > correct; proactive /compact beats auto-compact (per Thariq, Apr 2026) |
 
-> 🔄 = chapter rewritten in v1.1.0. 🆕 = placeholder added in v1.1.0, full content after more upgrade cycles accumulate.
+> 🔄 = chapter rewritten in v1.1.0. 🆕 = placeholder added in v1.1.0 (ch 9) and v1.2.0 (ch 10), full content as cases accumulate.
 
 ## ▸ Cost Model
 
