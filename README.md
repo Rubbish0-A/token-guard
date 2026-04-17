@@ -10,7 +10,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/Rubbish0-A/token-guard)
-[![Version](https://img.shields.io/badge/version-1.0.0-green)](https://github.com/Rubbish0-A/token-guard)
+[![Version](https://img.shields.io/badge/version-1.1.0-green)](https://github.com/Rubbish0-A/token-guard)
 
 [Installation](#-installation) · [Usage](#-usage) · [What It Checks](#-what-it-checks) · [Pitfall Guide](#-pitfall-guide)
 
@@ -86,18 +86,22 @@ That's it. Token Guard scans your configuration and outputs a scored audit repor
 Token Guard Audit Report
 ═══════════════════════════════════════════════
 Score: 🟡 Needs Attention
-Time: 2026-04-16 14:30:00
+Time: 2026-04-17 10:30:00
 
 ──── Checks ────────────────────────────────────
 
-✅ Model: sonnet (recommended for daily use)
+⚠️ Model: opus[1m] (1M context — confirm task spans >200K tokens)
+✅ Effort Level: xhigh (Opus 4.7 recommended default)
 ❌ Plugins: 18 enabled, 1 duplicate group detected
     → document-skills / example-skills / claude-api register identical skills
-⚠️ Rules: 19KB (recommend < 15KB)
-    → Largest: skill-vetter.md(4699B), agents.md(1979B)
+⚠️ Rules: 23KB (recommend < 15KB)
+    → Largest: agents.md(5958B), skill-vetter.md(4699B)
 ✅ Env Vars: No cross-contamination detected
-✅ Thinking Budget: 20000 (reasonable)
 ⚠️ Dangerous Mode: skipDangerousModePermissionPrompt=true
+✅ Dead Permissions: no dead allow-list entries
+⚠️ Stale Rules: 3 matches in performance.md
+    → Line 40: MAX_THINKING_TOKENS (deprecated in Opus 4.7+)
+    → Line 39: alwaysThinkingEnabled (superseded by effortLevel)
 ⚠️ Sessions: 236MB total, 45 aside_question agents, largest 48MB
 
 ──── Impact ────────────────────────────────────
@@ -106,11 +110,15 @@ System prompt overhead: ~25,000 tokens/turn
   Skill descriptions: ~15,000 tokens (120 skills × ~125)
   Rules files: ~6,000 tokens
 
+Model cost: 5x Sonnet baseline (Opus)
+Effort cost: ~1.5x high baseline (xhigh)
+
 ──── Fixable Items ─────────────────────────────
 
 1. Disable duplicate plugins (save ~10,000 tokens/turn)
 2. Reduce rules files or convert to on-demand skills
 3. Clean old session data (/compact or start new sessions)
+4. Remove MAX_THINKING_TOKENS references (no effect on Opus 4.7+)
 
 ═══════════════════════════════════════════════
 ```
@@ -121,17 +129,21 @@ System prompt overhead: ~25,000 tokens/turn
 
 | # | Check | What It Detects |
 |:---:|-------|-----------------|
-| 1 | **Model Config** | Opus as default for daily work (5x cost vs Sonnet) |
-| 2 | **Plugin Duplicates** | Too many plugins, triplicate skill registrations |
-| 3 | **Rules File Size** | Bloated rules inflating every API call's system prompt |
-| 4 | **Env Var Safety** | API keys stored in wrong variables (cross-contamination) |
-| 5 | **Thinking Budget** | Extended thinking budget set too high (default 31,999) |
+| 1 | **Model Config** | Opus as default for daily work; `opus[1m] + effort=max` cost trap |
+| 2 | **Effort Level** 🆕 | `effortLevel` misconfig (Opus 4.7+); Never-Pair combos like `haiku × max` |
+| 3 | **Plugin Duplicates** | Too many plugins, triplicate skill registrations |
+| 4 | **Rules File Size** | Bloated rules inflating every API call's system prompt |
+| 5 | **Env Var Safety** | API keys stored in wrong variables (cross-contamination) |
 | 6 | **Dangerous Mode** | `--dangerously-skip-permissions` enabling unrestricted execution |
-| 7 | **Session Health** | Session bloat, aside_question agent inflation, stale data |
+| 7 | **Dead Permissions** 🆕 | Redundant `permissions.allow` list under dangerously-skip mode |
+| 8 | **Stale Rules** 🆕 | Deprecated tokens in auto-loaded rules files (e.g. `MAX_THINKING_TOKENS` after Opus 4.7) |
+| 9 | **Session Health** | Session bloat, aside_question agent inflation, stale data |
+
+> 🆕 marks checks introduced in **v1.1.0**. The stale-rules check scans your rules files against a maintained pattern library at `references/stale-patterns.json` — contribute a pattern when you hit a new deprecation.
 
 ### Automated Diagnostic Script
 
-Includes `scripts/audit.sh` — cross-platform Bash script outputting structured JSON for all 7 checks. Claude reads the JSON and generates the human-friendly report. Falls back to manual checks if the script can't run.
+Includes `scripts/audit.sh` — cross-platform Bash script outputting structured JSON for all 9 checks. Claude reads the JSON and generates the human-friendly report. Falls back to manual checks if the script can't run.
 
 <details>
 <summary>JSON output example</summary>
@@ -139,14 +151,16 @@ Includes `scripts/audit.sh` — cross-platform Bash script outputting structured
 ```json
 {
   "tool": "token-guard",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "results": [
-    {"check": "model", "status": "warn", "value": "opus[1m]"},
+    {"check": "model", "status": "warn", "value": "opus[1m]", "effort": "xhigh"},
+    {"check": "effort_level", "status": "pass", "value": "xhigh"},
     {"check": "plugins", "status": "warn", "enabled": 16, "duplicates": 0},
-    {"check": "rules", "status": "warn", "totalKB": 19},
+    {"check": "rules", "status": "warn", "totalKB": 23},
     {"check": "env_vars", "status": "fail", "issues": 2},
-    {"check": "thinking", "status": "warn", "value": "31999"},
-    {"check": "dangerous_mode", "status": "warn", "dangerousProcs": 3},
+    {"check": "dangerous_mode", "status": "warn", "dangerousProcs": 1},
+    {"check": "dead_permissions", "status": "pass", "allowCount": 0},
+    {"check": "stale_rules", "status": "warn", "matches": 3, "details": [{"patternId": "max-thinking-tokens", "file": "~/.claude/rules/common/performance.md", "line": 40}]},
     {"check": "sessions", "status": "warn", "totalSizeMB": 236}
   ]
 }
@@ -156,22 +170,27 @@ Includes `scripts/audit.sh` — cross-platform Bash script outputting structured
 
 ## ▸ Pitfall Guide
 
-8 chapters based on real incidents. Each chapter: what happened → why → cost impact → correct approach.
+8 chapters based on real incidents + 1 placeholder for upcoming content. Each chapter: what happened → why → cost impact → correct approach.
 
 | Ch | Title | Key Lesson |
 |:---:|-------|------------|
 | 1 | **Plugin Management** | All skill descriptions load on every call — even unused ones |
 | 2 | **Model Selection** | Opus for everything = rocket delivery for pizza |
 | 3 | **Rules & System Prompt** | Every rule you write is tokens you pay for, every turn |
-| 4 | **Thinking Budget** | Default 31,999 → most tasks use < 5,000 |
+| 4 | **Reasoning Depth (effort)** 🔄 | `MAX_THINKING_TOKENS` is dead in Opus 4.7+; use `effortLevel` five-tier |
 | 5 | **Security & Env Vars** | Keys in wrong variables get sent to wrong providers |
 | 6 | **Maintenance** | Config only grows — nothing auto-cleans |
 | 7 | **Session Management** | Git commit is your cross-session memory, not long conversations |
-| 8 | **Sub-Agent Explosion** | "Auto-dispatch" = 3-5 agents × full system prompt × Opus pricing |
+| 8 | **Sub-Agent Explosion** 🔄 | "Auto-dispatch" = 3-5 agents × full system prompt × Opus pricing — now with model × effort matrix |
+| 9 | **Upgrade Drift** 🆕 | *(placeholder)* Model version upgrades leave behind stale config that keeps polluting context |
+
+> 🔄 = chapter rewritten in v1.1.0. 🆕 = placeholder added in v1.1.0, full content after more upgrade cycles accumulate.
 
 ## ▸ Cost Model
 
-No absolute prices — ratios that stay valid as pricing changes:
+No absolute prices — ratios that stay valid as pricing changes.
+
+### Model Dimension
 
 | Model | Input | Output | Best For |
 |-------|:-----:|:------:|----------|
@@ -179,14 +198,34 @@ No absolute prices — ratios that stay valid as pricing changes:
 | **Sonnet** | 1x | 1x | Daily coding, debugging |
 | **Haiku** | ~0.27x | ~0.27x | Sub-agents, retrieval, batch |
 
-## ▸ Sub-Agent Model Strategy
+### Effort Dimension (Opus 4.7+)
 
-| Task | Model | Escalate to Opus When |
-|------|:-----:|-----------------------|
-| File search, git log | **Haiku** | Results seem unreliable or contradictory |
-| CRUD, tests, simple refactoring | **Sonnet** | Changes span 3+ interdependent files |
-| Code review (small diff) | **Sonnet** | Involves auth, payment, security, migration |
-| Complex coding, architecture | **Opus** | — |
+| Effort | Thinking Tokens (vs high) | Depth-Thinking Probability | Best For |
+|--------|:-----:|:------:|----------|
+| `low` | ~0.3x | Almost never | Retrieval, classification |
+| `medium` | ~0.6x | Rare | Cost-sensitive routine |
+| `high` | 1x (baseline) | Moderate | Coding, review |
+| `xhigh` | ~1.5x | High (with backtracking) | **Default** — coding + agentic |
+| `max` | ~2x+ | Very high | Architecture, security, deep debug |
+
+> **Key fact**: `low-effort Opus 4.7 ≈ medium-effort Opus 4.6`. So effort-downgrade on Opus has diminishing returns. The real lever is **model downgrade** (sonnet/haiku), not effort-downgrade.
+
+## ▸ Sub-Agent Strategy (model × effort)
+
+| Task | Model | Effort | Escalate When |
+|------|:-----:|:-----:|---------------|
+| File search, git log | Haiku | low | Results unreliable |
+| Simple edit, rename | Haiku/Sonnet | medium | — |
+| CRUD, tests, refactor | Sonnet | high | Changes span 3+ files |
+| Code review (small diff) | Sonnet | high | Auth/payment/security/migration |
+| Complex coding | Opus | xhigh | **xhigh shallow → max** |
+| Architecture, deep review | Opus | max | — |
+
+### Never Pair
+
+- `haiku × {xhigh, max}` — small models can't exploit deep thinking
+- `opus × low` — inverted, downgrade model instead
+- `[1m] × max` on routine tasks — thinking tokens get re-processed across the full context
 
 ## ▸ New User Onboarding
 

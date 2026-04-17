@@ -1,6 +1,6 @@
 {
   "name": "token-guard",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Claude Code token consumption audit and optimization guide. Learned the hard way so you don't have to.",
   "author": {
     "name": "Rubbish0-A",

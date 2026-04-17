@@ -10,7 +10,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://github.com/Rubbish0-A/token-guard)
-[![Version](https://img.shields.io/badge/version-1.0.0-green)](https://github.com/Rubbish0-A/token-guard)
+[![Version](https://img.shields.io/badge/version-1.1.0-green)](https://github.com/Rubbish0-A/token-guard)
 
 [安装](#-安装) · [使用](#-使用) · [检查项](#-检查项) · [踩坑指南](#-踩坑指南)
 
@@ -86,18 +86,22 @@ Token Guard 扫描你的配置，输出带评分的审计报告：
 Token Guard 审计报告
 ═══════════════════════════════════════════════
 评分：🟡 需要关注
-检查时间：2026-04-16 14:30:00
+检查时间：2026-04-17 10:30:00
 
 ──── 检查项 ────────────────────────────────────
 
-✅ 模型配置：sonnet（日常开发推荐）
+⚠️ 模型配置：opus[1m]（1M 上下文，确认任务跨 200K+ tokens 再用）
+✅ Effort 配置：xhigh（Opus 4.7 官方默认）
 ❌ 插件状态：18 个已启用，检测到 1 组重复
     → document-skills / example-skills / claude-api 注册相同技能
-⚠️ 规则文件：19KB（建议 < 15KB）
-    → 最大：skill-vetter.md(4699B), agents.md(1979B)
+⚠️ 规则文件：23KB（建议 < 15KB）
+    → 最大：agents.md(5958B), skill-vetter.md(4699B)
 ✅ 环境变量：未检测到交叉污染
-✅ Thinking 预算：20000（合理）
 ⚠️ 危险模式：skipDangerousModePermissionPrompt=true
+✅ 死代码权限：无冗余 allow 列表
+⚠️ 过时指令：performance.md 中 3 处匹配
+    → 第40行：MAX_THINKING_TOKENS（Opus 4.7+ 已废弃）
+    → 第39行：alwaysThinkingEnabled（被 effortLevel 取代）
 ⚠️ 会话健康：总计 236MB，45 个 aside_question agent，最大 48MB
 
 ──── 影响估算 ──────────────────────────────────
@@ -106,11 +110,15 @@ Token Guard 审计报告
   技能描述占：约 15,000 tokens（120 条 × ~125）
   规则文件占：约 6,000 tokens
 
+Model 成本系数：5x Sonnet 基准（Opus）
+Effort 成本系数：~1.5x high 基准（xhigh）
+
 ──── 可修复项 ──────────────────────────────────
 
 1. 禁用重复插件（每轮省 ~10,000 tokens）
 2. 精简规则文件或转为按需加载
 3. 清理旧会话数据（/compact 或开新会话）
+4. 删除 MAX_THINKING_TOKENS 引用（对 Opus 4.7+ 无效）
 
 ═══════════════════════════════════════════════
 ```
@@ -121,17 +129,21 @@ Token Guard 审计报告
 
 | # | 检查项 | 检测内容 |
 |:---:|--------|---------|
-| 1 | **模型配置** | 是否用 Opus 做日常开发（成本是 Sonnet 的 5 倍） |
-| 2 | **插件重复** | 插件过多、三重复制技能注册 |
-| 3 | **规则文件体积** | 规则膨胀导致系统提示开销增大 |
-| 4 | **环境变量安全** | API Key 存错变量（交叉污染） |
-| 5 | **Thinking 预算** | Extended Thinking 预算过高（默认 31,999） |
+| 1 | **模型配置** | 是否用 Opus 做日常开发；`opus[1m] + effort=max` 成本陷阱 |
+| 2 | **Effort 配置** 🆕 | `effortLevel` 误配（Opus 4.7+ 新维度）；Never-Pair 禁区如 `haiku × max` |
+| 3 | **插件重复** | 插件过多、三重复制技能注册 |
+| 4 | **规则文件体积** | 规则膨胀导致系统提示开销增大 |
+| 5 | **环境变量安全** | API Key 存错变量（交叉污染） |
 | 6 | **危险模式** | `--dangerously-skip-permissions` 开启无限制执行 |
-| 7 | **会话健康** | 会话膨胀、aside_question agent 膨胀、陈旧数据 |
+| 7 | **死代码权限** 🆕 | 危险模式下残留的 `permissions.allow` 列表（被完全绕过） |
+| 8 | **规则过时指令** 🆕 | 自动加载的规则文件中残留的废弃指令（如 Opus 4.7 后的 `MAX_THINKING_TOKENS`） |
+| 9 | **会话健康** | 会话膨胀、aside_question agent 膨胀、陈旧数据 |
+
+> 🆕 为 **v1.1.0** 新增检查。过时指令检查对照可维护的模式库 `references/stale-patterns.json`——遇到新的废弃指令欢迎提 PR 贡献模式。
 
 ### 自动化诊断脚本
 
-内含 `scripts/audit.sh` — 跨平台 Bash 脚本，7 项检查输出结构化 JSON。Claude 读取后生成可读报告，脚本不可用时回退到手动检查。
+内含 `scripts/audit.sh` — 跨平台 Bash 脚本，9 项检查输出结构化 JSON。Claude 读取后生成可读报告，脚本不可用时回退到手动检查。
 
 <details>
 <summary>JSON 输出示例</summary>
@@ -139,14 +151,16 @@ Token Guard 审计报告
 ```json
 {
   "tool": "token-guard",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "results": [
-    {"check": "model", "status": "warn", "value": "opus[1m]"},
+    {"check": "model", "status": "warn", "value": "opus[1m]", "effort": "xhigh"},
+    {"check": "effort_level", "status": "pass", "value": "xhigh"},
     {"check": "plugins", "status": "warn", "enabled": 16, "duplicates": 0},
-    {"check": "rules", "status": "warn", "totalKB": 19},
+    {"check": "rules", "status": "warn", "totalKB": 23},
     {"check": "env_vars", "status": "fail", "issues": 2},
-    {"check": "thinking", "status": "warn", "value": "31999"},
-    {"check": "dangerous_mode", "status": "warn", "dangerousProcs": 3},
+    {"check": "dangerous_mode", "status": "warn", "dangerousProcs": 1},
+    {"check": "dead_permissions", "status": "pass", "allowCount": 0},
+    {"check": "stale_rules", "status": "warn", "matches": 3, "details": [{"patternId": "max-thinking-tokens", "file": "~/.claude/rules/common/performance.md", "line": 40}]},
     {"check": "sessions", "status": "warn", "totalSizeMB": 236}
   ]
 }
@@ -156,22 +170,27 @@ Token Guard 审计报告
 
 ## ▸ 踩坑指南
 
-8 章指南，全部基于真实事件。每章：发生了什么 → 为什么 → 消耗影响 → 规范做法。
+8 章基于真实事件 + 1 章占位。每章：发生了什么 → 为什么 → 消耗影响 → 规范做法。
 
 | 章 | 标题 | 核心教训 |
 |:---:|------|---------|
 | 1 | **插件管理** | 所有技能描述每次调用都加载——即使你没用到 |
 | 2 | **模型选择** | 用 Opus 做所有事 = 用火箭送外卖 |
 | 3 | **规则文件** | 你写的每条规则，每轮对话都要付费 |
-| 4 | **Thinking 预算** | 默认 31,999 → 大多数任务只用 < 5,000 |
+| 4 | **Reasoning Depth (effort)** 🔄 | `MAX_THINKING_TOKENS` 在 Opus 4.7+ 已废弃，改用 `effortLevel` 五档 |
 | 5 | **安全与环境变量** | Key 存错变量 = Key 被发到错误的服务商 |
 | 6 | **日常维护** | 配置只增不减——没有自动清理机制 |
 | 7 | **会话管理** | git commit 才是跨会话记忆，不是长对话 |
-| 8 | **子 Agent 失控** | "自动触发" = 3-5 个 agent × 完整系统提示 × Opus 定价 |
+| 8 | **子 Agent 失控** 🔄 | "自动触发" = 3-5 个 agent × 完整系统提示 × Opus 定价，v1.1 新增 model × effort 矩阵 |
+| 9 | **升级漂移** 🆕 | *（占位）* 模型版本升级留下陈旧配置，持续污染后续上下文 |
+
+> 🔄 = v1.1.0 重写的章节。🆕 = v1.1.0 新增占位，待累积更多升级案例后补写。
 
 ## ▸ 成本倍数参考
 
-不含绝对价格——只用倍数关系，不随调价过时：
+不含绝对价格——只用倍数关系，不随调价过时。
+
+### Model 维度
 
 | 模型 | 输入 | 输出 | 适用场景 |
 |------|:----:|:----:|---------|
@@ -179,14 +198,34 @@ Token Guard 审计报告
 | **Sonnet** | 1x | 1x | 日常编码、调试 |
 | **Haiku** | ~0.27x | ~0.27x | 子 agent、检索、批处理 |
 
-## ▸ 子 Agent 模型分档策略
+### Effort 维度（Opus 4.7+）
 
-| 任务 | 模型 | 升级到 Opus 的条件 |
-|------|:----:|--------------------|
-| 搜文件、git log | **Haiku** | 结果不可靠或存在矛盾 |
-| CRUD、测试、简单重构 | **Sonnet** | 变更跨 3+ 个文件且有依赖 |
-| Code review（小 diff） | **Sonnet** | 涉及认证、支付、安全、迁移 |
-| 复杂编码、架构设计 | **Opus** | — |
+| Effort | 思考 token 倍数（vs high） | 触发深度思考概率 | 适用 |
+|--------|:-----:|:------:|------|
+| `low` | ~0.3x | 极少 | 检索、分类 |
+| `medium` | ~0.6x | 较少 | 成本敏感常规任务 |
+| `high` | 1x（基准） | 中等 | 编码、review |
+| `xhigh` | ~1.5x | 高（含主动回溯） | **默认**，编码+agentic |
+| `max` | ~2x+ | 极高 | 架构、安全、深度 debug |
+
+> **关键事实**：`low-effort Opus 4.7 ≈ medium-effort Opus 4.6`。effort 降档在 Opus 上的边际收益递减。真正的成本杠杆是 **model 降档**（sonnet/haiku），不是 effort 降档。
+
+## ▸ 子 Agent 分档策略（model × effort）
+
+| 任务 | 模型 | Effort | 升级条件 |
+|------|:----:|:-----:|---------|
+| 搜文件、git log | Haiku | low | 结果不可靠 |
+| 简单编辑、重命名 | Haiku/Sonnet | medium | — |
+| CRUD、测试、重构 | Sonnet | high | 变更跨 3+ 文件 |
+| Code review（小 diff） | Sonnet | high | 认证/支付/安全/迁移 |
+| 复杂编码 | Opus | xhigh | **xhigh 浅薄 → max** |
+| 架构、深度 review | Opus | max | — |
+
+### Never Pair 禁区
+
+- `haiku × {xhigh, max}` — 小模型无法利用深度思考
+- `opus × low` — 档位倒置，应降 model 到 sonnet
+- `[1m] × max` 用于常规任务 — 思考 token 被全上下文复算
 
 ## ▸ 新同事入职指南
 

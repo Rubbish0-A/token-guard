@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1",
+  "description": "Deprecated tokens, settings, and model names to detect in auto-loaded rules files (~/.claude/rules/**/*.md, ~/.claude/CLAUDE.md, project CLAUDE.md). Each pattern is a JavaScript-compatible regex evaluated by scripts/audit.sh via Node.",
+  "lastUpdated": "2026-04-17",
+  "patterns": [
+    {
+      "id": "max-thinking-tokens",
+      "regex": "MAX_THINKING_TOKENS",
+      "severity": "warn",
+      "deprecatedSince": "Opus 4.7 (2026-04)",
+      "message": "MAX_THINKING_TOKENS env var does not apply to Opus 4.7+ (adaptive reasoning is always on).",
+      "fix": "Remove references. Configure `effortLevel` in settings.json instead."
+    },
+    {
+      "id": "disable-adaptive-thinking",
+      "regex": "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING",
+      "severity": "warn",
+      "deprecatedSince": "Opus 4.7 (2026-04)",
+      "message": "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING has no effect on Opus 4.7+.",
+      "fix": "Remove references. Opus 4.7+ always uses adaptive reasoning regardless of this flag."
+    },
+    {
+      "id": "always-thinking-enabled",
+      "regex": "alwaysThinkingEnabled",
+      "severity": "warn",
+      "deprecatedSince": "Opus 4.7 (2026-04)",
+      "message": "alwaysThinkingEnabled settings field is deprecated in Opus 4.7+.",
+      "fix": "Remove from settings.json. Use `effortLevel` (low/medium/high/xhigh/max) instead."
+    },
+    {
+      "id": "stale-opus-version",
+      "regex": "\\bOpus 4\\.[0-5]\\b",
+      "severity": "info",
+      "deprecatedSince": "Opus 4.7 (2026-04)",
+      "message": "Reference to an older Opus version (4.0-4.5). Current default is Opus 4.7.",
+      "fix": "Update to `Opus 4.7` (or the latest version you use)."
+    },
+    {
+      "id": "stale-sonnet-version",
+      "regex": "\\bSonnet 4\\.[0-5]\\b",
+      "severity": "info",
+      "deprecatedSince": "Sonnet 4.6",
+      "message": "Reference to an older Sonnet version (4.0-4.5). Latest is Sonnet 4.6.",
+      "fix": "Update to `Sonnet 4.6` (or the latest version you use)."
+    },
+    {
+      "id": "stale-haiku-version",
+      "regex": "\\bHaiku 4\\.[0-4]\\b",
+      "severity": "info",
+      "deprecatedSince": "Haiku 4.5",
+      "message": "Reference to an older Haiku version (4.0-4.4). Latest is Haiku 4.5.",
+      "fix": "Update to `Haiku 4.5` (or the latest version you use)."
+    },
+    {
+      "id": "claude-3-era-model",
+      "regex": "\\bclaude-3(-5)?(-sonnet|-opus|-haiku)?",
+      "severity": "warn",
+      "deprecatedSince": "Claude 4 (2025-05)",
+      "message": "Reference to Claude 3.x era model. These are legacy and may be retired.",
+      "fix": "Update to Claude 4.x model IDs (`claude-opus-4-7`, `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`)."
+    },
+    {
+      "id": "stale-opus-4-early-id",
+      "regex": "\\bclaude-opus-4-[0-5]\\b",
+      "severity": "info",
+      "deprecatedSince": "Opus 4.7 (2026-04)",
+      "message": "Reference to an older Opus 4.x model ID. Current: `claude-opus-4-7`.",
+      "fix": "Update to `claude-opus-4-7` (or the latest Opus 4.x ID)."
+    }
+  ],
+  "maintenanceNote": "Add a new pattern whenever a Claude model major version ships or a settings field is deprecated. Keep severity conservative (info for version drift, warn for actively-misleading config, fail only for active security/cost damage). See model-upgrade-checklist workflow in the main repo."
+}
